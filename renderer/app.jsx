@@ -1,5 +1,18 @@
 const { useState, useEffect } = React;
 
+// ==================== CONSTANTS ====================
+const FINISH_TYPES = ["SW", "S4", "S6"];
+const FINISH_SUBTEXTS = {
+  "SW": ["RAL 9010", "RAL 9002", "RAL 9003", "RAL 9006", "RAL 9016", "RAL 7035", "Custom"],
+  "S4": ["Brushed", "Mirror", "2B", "025", "Custom"],
+  "S6": ["Brushed", "Mirror", "2B", "025", "Custom"]
+};
+const FINISH_DESCRIPTIONS = {
+  "SW": "Prepainted Steel",
+  "S4": "Stainless Steel",
+  "S6": "Aluminium"
+};
+
 // ==================== ICON COMPONENTS ====================
 const Plus = ({size = 20}) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -284,7 +297,6 @@ const ModificationManagerModal = ({ isOpen, onClose, allItems, onRefresh, tables
     if (isOpen) {
       const combined = [...allItems];
       
-      // Add items used in tables but not in database
       const usedMods = new Map();
       tables.forEach(table => {
         table.rows.forEach(row => {
@@ -335,7 +347,6 @@ const ModificationManagerModal = ({ isOpen, onClose, allItems, onRefresh, tables
 
   const updateMod = async (id, field, value) => {
     try {
-      // Skip temp items
       if (typeof id === 'string' && id.startsWith('temp_')) {
         return;
       }
@@ -535,7 +546,6 @@ const PrecalculationTable = ({
   onDelete, 
   onDuplicate, 
   allItems,
-  allFinishes,
   globalDate, 
   globalBy, 
   globalCurrency, 
@@ -546,6 +556,8 @@ const PrecalculationTable = ({
   isSalesView 
 }) => {
   const [showDropdown, setShowDropdown] = useState({});
+
+  const availableFinishSubtexts = FINISH_SUBTEXTS[table.finishType] || ["RAL 9010"];
 
   const addDefaultItemRow = () => {
     const newDefaultItems = [...table.defaultItems, { itemNumber: '', name: '', f3Cost: '' }];
@@ -559,8 +571,10 @@ const PrecalculationTable = ({
   };
 
   const deleteDefaultItem = (itemIndex) => {
-    const newDefaultItems = table.defaultItems.filter((_, i) => i !== itemIndex);
-    onUpdate(index, { ...table, defaultItems: newDefaultItems });
+    if (table.defaultItems.length > 1) {
+      const newDefaultItems = table.defaultItems.filter((_, i) => i !== itemIndex);
+      onUpdate(index, { ...table, defaultItems: newDefaultItems });
+    }
   };
 
   const addRow = () => {
@@ -602,8 +616,10 @@ const PrecalculationTable = ({
   };
 
   const deleteRow = (rowIndex) => {
-    const newRows = table.rows.filter((_, i) => i !== rowIndex);
-    onUpdate(index, { ...table, rows: newRows });
+    if (table.rows.length > 1) {
+      const newRows = table.rows.filter((_, i) => i !== rowIndex);
+      onUpdate(index, { ...table, rows: newRows });
+    }
   };
 
   const getFilteredItems = (rowIndex) => {
@@ -675,50 +691,68 @@ const PrecalculationTable = ({
 
       <div className="grid grid-cols-12 gap-4 mb-4">
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Finish</label>
-          {table.finishIsCustom ? (
+          <label className="block text-sm font-medium text-gray-700 mb-2">Finish Type</label>
+          <select 
+            value={table.finishType} 
+            onChange={(e) => {
+              const newType = e.target.value;
+              const newSubtexts = FINISH_SUBTEXTS[newType];
+              onUpdate(index, { 
+                ...table, 
+                finishType: newType,
+                finishSubtext: newSubtexts[0],
+                finishSubtextCustom: ''
+              });
+            }} 
+            className="w-full h-10 px-3 py-2 border border-gray-300 rounded"
+          >
+            {FINISH_TYPES.map(f => (
+              <option key={f} value={f}>
+                {f} {FINISH_DESCRIPTIONS[f] ? `(${FINISH_DESCRIPTIONS[f]})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Finish Detail</label>
+          {table.finishSubtext === 'Custom' ? (
             <div className="flex gap-2">
               <input 
                 type="text" 
-                value={table.finish} 
-                onChange={(e) => onUpdate(index, { ...table, finish: e.target.value })} 
-                className="flex-1 px-3 py-2 border border-gray-300 rounded" 
+                value={table.finishSubtextCustom} 
+                onChange={(e) => onUpdate(index, { ...table, finishSubtextCustom: e.target.value })} 
+                className="flex-1 h-10 px-3 py-2 border border-gray-300 rounded" 
               />
               <button 
-                onClick={() => onUpdate(index, { ...table, finishIsCustom: false, finish: 'RAL 9010' })} 
-                className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 no-print"
+                onClick={() => onUpdate(index, { ...table, finishSubtext: availableFinishSubtexts[0], finishSubtextCustom: '' })} 
+                className="h-10 px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 no-print"
               >
                 ✕
               </button>
             </div>
           ) : (
             <select 
-              value={table.finish} 
-              onChange={(e) => { 
-                if (e.target.value === 'custom') { 
-                  onUpdate(index, { ...table, finishIsCustom: true, finish: '' }); 
-                } else { 
-                  onUpdate(index, { ...table, finish: e.target.value }); 
-                } 
-              }} 
-              className="w-full px-3 py-2 border border-gray-300 rounded"
+              value={table.finishSubtext} 
+              onChange={(e) => onUpdate(index, { ...table, finishSubtext: e.target.value })} 
+              className="w-full h-10 px-3 py-2 border border-gray-300 rounded"
             >
-              {allFinishes.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
-              <option value="custom" className="no-print">-- Custom --</option>
+              {availableFinishSubtexts.map(f => (
+                <option key={f} value={f}>{f}</option>
+              ))}
             </select>
           )}
         </div>
-        <div className="col-span-3">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Project Number</label>
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Project Number</label>
           <input 
             type="text" 
             value={table.projectNumber} 
             onChange={(e) => handleProjectNumberChange(e.target.value)} 
-            className="w-full px-3 py-2 border border-gray-300 rounded font-mono uppercase" 
+            className="w-full h-10 px-3 py-2 border border-gray-300 rounded font-mono uppercase" 
           />
         </div>
         <div className="col-span-3">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Drawing Number</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Drawing Number</label>
           <input 
             type="text" 
             value={table.drawingNumber} 
@@ -726,40 +760,47 @@ const PrecalculationTable = ({
               const formatted = formatDrawingNumber(e.target.value); 
               onUpdate(index, { ...table, drawingNumber: formatted }); 
             }} 
-            className="w-full px-3 py-2 border border-gray-300 rounded font-mono" 
+            className="w-full h-10 px-3 py-2 border border-gray-300 rounded font-mono" 
+          />
+          <input 
+            type="text" 
+            value={table.drawingNumberSubtext} 
+            onChange={(e) => onUpdate(index, { ...table, drawingNumberSubtext: e.target.value })} 
+            className="w-full h-8 px-3 py-1 border border-gray-300 rounded text-sm text-gray-600 mt-1" 
+            placeholder="Configuration"
           />
         </div>
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Weight (kg)</label>
           <input 
             type="number" 
             step="0.1" 
             value={table.weight} 
             onChange={(e) => onUpdate(index, { ...table, weight: e.target.value })} 
-            className="w-full px-3 py-2 border border-gray-300 rounded" 
+            className="w-full h-10 px-3 py-2 border border-gray-300 rounded" 
           />
         </div>
-        <div className="col-span-2 no-print">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Margin (%)</label>
+        <div className="col-span-1 no-print">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Margin %</label>
           <input 
             type="number" 
             step="1" 
-            value={table.customMargin || '40'} 
+            value={table.customMargin || ''} 
             onChange={(e) => handleCustomMarginChange(e.target.value)} 
-            className="w-full px-3 py-2 border border-gray-300 rounded" 
-            placeholder="40"
+            className="w-full h-10 px-3 py-2 border border-gray-300 rounded" 
           />
         </div>
         <div className="col-span-12">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Description Name</label>
           <input 
             type="text" 
             value={table.descriptionName} 
             onChange={(e) => onUpdate(index, { ...table, descriptionName: e.target.value })} 
-            className="w-full px-3 py-2 border border-gray-300 rounded description-name-print" 
+            className="w-full h-10 px-3 py-2 border border-gray-300 rounded description-name-print" 
           />
         </div>
       </div>
+
 
       <h3 className="text-lg font-semibold mb-3 text-gray-700">Items & Modifications</h3>
       
@@ -811,7 +852,11 @@ const PrecalculationTable = ({
                   />
                 </td>
                 <td className="border border-gray-300 px-2 py-1 text-center no-print">
-                  <button onClick={() => deleteDefaultItem(itemIndex)} className="text-red-600 hover:text-red-800">
+                  <button 
+                    onClick={() => deleteDefaultItem(itemIndex)} 
+                    className="text-red-600 hover:text-red-800"
+                    disabled={table.defaultItems.length === 1}
+                  >
                     <Trash2 size={16} />
                   </button>
                 </td>
@@ -861,7 +906,6 @@ const PrecalculationTable = ({
                       }} 
                       onFocus={() => setShowDropdown({ ...showDropdown, [rowIndex]: true })} 
                       onBlur={() => setTimeout(() => setShowDropdown({ ...showDropdown, [rowIndex]: false }), 200)} 
-                      placeholder="Type to search..." 
                       className="w-full px-2 py-1 border-0 focus:outline-none" 
                     />
                     {showDropdown[rowIndex] && getFilteredItems(rowIndex).length > 0 && (
@@ -945,7 +989,11 @@ const PrecalculationTable = ({
                     )}
                   </td>
                   <td className="border border-gray-300 px-2 py-1 text-center no-print">
-                    <button onClick={() => deleteRow(rowIndex)} className="text-red-600 hover:text-red-800">
+                    <button 
+                      onClick={() => deleteRow(rowIndex)} 
+                      className="text-red-600 hover:text-red-800"
+                      disabled={table.rows.length === 1}
+                    >
                       <Trash2 size={16} />
                     </button>
                   </td>
@@ -977,17 +1025,19 @@ const PrecalculationTable = ({
               <span>{totalCost.toFixed(0)} €</span>
             </div>
           </div>
-          <div className="flex justify-between text-sm border-t pt-2 print-hide-emc-margin">
-            <span>EMC Margin:</span>
-            <span className="font-semibold">{emcMargin.toFixed(0)}%</span>
-          </div>
+          {!isSalesView && (
+            <div className="flex justify-between text-sm border-t pt-2 print-hide-emc-margin">
+              <span>EMC Margin:</span>
+              <span className="font-semibold">{emcMargin.toFixed(0)}%</span>
+            </div>
+          )}
           {globalCurrency !== 'EUR' && (
             <div className="flex flex-col">
               <div className="flex justify-between font-bold text-xl text-blue-700 bg-blue-50 p-3 rounded border-t-2 border-blue-700 cost-total-print">
                 <span>Cost Total ({globalCurrency}):</span>
                 <span>{Math.round(totalCost * currencyRate).toFixed(0)} {globalCurrency}</span>
               </div>
-              <div className="exchange-rate-print">
+              <div className="text-xs text-gray-500 mt-1 exchange-rate-print">
                 Exchange rate: 1 EUR = {currencyRate.toFixed(4)} {globalCurrency}
               </div>
             </div>
@@ -1006,20 +1056,21 @@ function App() {
   const [globalCurrency, setGlobalCurrency] = useState("EUR");
   const [isSalesView, setIsSalesView] = useState(false);
   
-  // Database-backed state
   const [allItems, setAllItems] = useState([]);
   const [allCurrencies, setAllCurrencies] = useState([]);
-  const [allFinishes, setAllFinishes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [tables, setTables] = useState([{ 
     id: Date.now(), 
     descriptionName: "", 
     drawingNumber: "", 
+    drawingNumberSubtext: "",
     projectNumber: "", 
-    finish: "RAL 9010", 
-    finishIsCustom: false, 
+    finishType: "SW",
+    finishSubtext: "RAL 9010",
+    finishSubtextCustom: "",
     weight: "", 
-    customMargin: "40",
+    customMargin: "",
     defaultItems: [{ itemNumber: '', name: '', f3Cost: '' }], 
     rows: [{ modification: '', unit: '', qty: '', f4Price: '', f3Price: '' }] 
   }]);
@@ -1036,18 +1087,31 @@ function App() {
 
   const loadDatabaseData = async () => {
     try {
-      const [items, currencies, finishes] = await Promise.all([
+      setIsLoading(true);
+      console.log('Loading database data...');
+      
+      const [items, currencies] = await Promise.all([
         window.electronAPI.items.getAll(),
-        window.electronAPI.currencies.getAll(),
-        window.electronAPI.finishes.getAll()
+        window.electronAPI.currencies.getAll()
       ]);
+      
+      console.log('Loaded items:', items.length);
+      console.log('Loaded currencies:', currencies.length);
       
       setAllItems(items);
       setAllCurrencies(currencies);
-      setAllFinishes(finishes);
+      
+      // Set default currency if EUR exists
+      const eurCurrency = currencies.find(c => c.code === 'EUR');
+      if (eurCurrency) {
+        setGlobalCurrency('EUR');
+      }
+      
+      setIsLoading(false);
     } catch (error) {
       console.error('Error loading database data:', error);
-      alert('Error loading data from database');
+      alert('Error loading data from database: ' + error.message);
+      setIsLoading(false);
     }
   };
 
@@ -1075,11 +1139,13 @@ function App() {
       id: Date.now(), 
       descriptionName: "", 
       drawingNumber: lastTable.drawingNumber || "", 
+      drawingNumberSubtext: lastTable.drawingNumberSubtext || "",
       projectNumber: lastTable.projectNumber || "", 
-      finish: "RAL 9010", 
-      finishIsCustom: false, 
+      finishType: "SW",
+      finishSubtext: "RAL 9010",
+      finishSubtextCustom: "",
       weight: "", 
-      customMargin: "40",
+      customMargin: "",
       defaultItems: [{ itemNumber: '', name: '', f3Cost: '' }], 
       rows: [{ modification: '', unit: '', qty: '', f4Price: '', f3Price: '' }] 
     }]);
@@ -1097,11 +1163,13 @@ function App() {
         id: Date.now(), 
         descriptionName: "", 
         drawingNumber: "", 
+        drawingNumberSubtext: "",
         projectNumber: "", 
-        finish: "RAL 9010", 
-        finishIsCustom: false, 
+        finishType: "SW",
+        finishSubtext: "RAL 9010",
+        finishSubtextCustom: "",
         weight: "", 
-        customMargin: "40",
+        customMargin: "",
         defaultItems: [{ itemNumber: '', name: '', f3Cost: '' }], 
         rows: [{ modification: '', unit: '', qty: '', f4Price: '', f3Price: '' }] 
       }]);
@@ -1117,7 +1185,7 @@ function App() {
     setTables(newTables);
   };
 
-  // Export functions using Electron APIs
+  // Export/Import functions (keep same as before)
   const exportToPDF = async () => {
     try {
       if (isSalesView) {
@@ -1147,10 +1215,13 @@ function App() {
         xmlContent += `  <Project id="${tableIndex + 1}">\n`;
         xmlContent += `    <ProjectNumber>${table.projectNumber || ''}</ProjectNumber>\n`;
         xmlContent += `    <DrawingNumber>${table.drawingNumber || ''}</DrawingNumber>\n`;
+        xmlContent += `    <DrawingNumberSubtext>${table.drawingNumberSubtext || ''}</DrawingNumberSubtext>\n`;
         xmlContent += `    <DescriptionName>${table.descriptionName || ''}</DescriptionName>\n`;
-        xmlContent += `    <Finish>${table.finish || 'RAL 9010'}</Finish>\n`;
+        xmlContent += `    <FinishType>${table.finishType || 'SW'}</FinishType>\n`;
+        xmlContent += `    <FinishSubtext>${table.finishSubtext || 'RAL 9010'}</FinishSubtext>\n`;
+        xmlContent += `    <FinishSubtextCustom>${table.finishSubtextCustom || ''}</FinishSubtextCustom>\n`;
         xmlContent += `    <Weight>${table.weight || ''}</Weight>\n`;
-        xmlContent += `    <CustomMargin>${table.customMargin || '40'}</CustomMargin>\n`;
+        xmlContent += `    <CustomMargin>${table.customMargin || ''}</CustomMargin>\n`;
         
         xmlContent += `    <DefaultItems>\n`;
         table.defaultItems.forEach((item, itemIndex) => {
@@ -1252,11 +1323,13 @@ function App() {
           id: Date.now() + i,
           projectNumber: project.getElementsByTagName('ProjectNumber')[0]?.textContent || '',
           drawingNumber: project.getElementsByTagName('DrawingNumber')[0]?.textContent || '',
+          drawingNumberSubtext: project.getElementsByTagName('DrawingNumberSubtext')[0]?.textContent || '',
           descriptionName: project.getElementsByTagName('DescriptionName')[0]?.textContent || '',
-          finish: project.getElementsByTagName('Finish')[0]?.textContent || 'RAL 9010',
-          finishIsCustom: false,
+          finishType: project.getElementsByTagName('FinishType')[0]?.textContent || 'SW',
+          finishSubtext: project.getElementsByTagName('FinishSubtext')[0]?.textContent || 'RAL 9010',
+          finishSubtextCustom: project.getElementsByTagName('FinishSubtextCustom')[0]?.textContent || '',
           weight: project.getElementsByTagName('Weight')[0]?.textContent || '',
-          customMargin: project.getElementsByTagName('CustomMargin')[0]?.textContent || '40',
+          customMargin: project.getElementsByTagName('CustomMargin')[0]?.textContent || '',
           defaultItems: [],
           rows: []
         };
@@ -1314,6 +1387,38 @@ function App() {
     }
   };
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-800 mb-4">Loading...</div>
+          <div className="text-gray-600">Loading database...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if no data loaded
+  if (allItems.length === 0 || allCurrencies.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-lg shadow-lg">
+          <div className="text-2xl font-bold text-red-600 mb-4">Database Error</div>
+          <div className="text-gray-600 mb-4">
+            Failed to load database. Please check the console for errors.
+          </div>
+          <button 
+            onClick={loadDatabaseData}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-7xl mx-auto">
@@ -1324,13 +1429,13 @@ function App() {
               onClick={() => setShowModManager(true)} 
               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
             >
-              <Edit /> Manage Modifications
+              <Edit /> Manage Modifications ({allItems.length})
             </button>
             <button 
               onClick={() => setShowCurrencyManager(true)} 
               className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
             >
-              <Edit /> Manage Currencies
+              <Edit /> Manage Currencies ({allCurrencies.length})
             </button>
             
             <div className="relative">
@@ -1379,7 +1484,6 @@ function App() {
           </div>
         </div>
 
-        {/* Global Settings */}
         <div className="mb-6 bg-white rounded-lg shadow-md p-6 no-print">
           <h3 className="text-lg font-semibold mb-4 text-gray-700">Global Settings</h3>
           <div className="grid grid-cols-4 gap-4">
@@ -1460,7 +1564,6 @@ function App() {
           </div>
         </div>
 
-        {/* Tables */}
         {tables.map((table, index) => (
           <PrecalculationTable 
             key={table.id} 
@@ -1470,14 +1573,13 @@ function App() {
             onDelete={deleteTable} 
             onDuplicate={duplicateTable} 
             allItems={allItems}
-            allFinishes={allFinishes}
             globalDate={globalDate} 
             globalBy={globalBy} 
             globalCurrency={globalCurrency} 
             formatProjectNumber={formatProjectNumber} 
             formatDrawingNumber={formatDrawingNumber} 
             allCurrencies={allCurrencies}
-            isFirstTable={index === 0}
+            isFirstTable={index === 0 && tables.length === 1}
             isSalesView={isSalesView}
           />
         ))}

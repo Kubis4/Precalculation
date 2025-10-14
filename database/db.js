@@ -64,34 +64,128 @@ class DatabaseManager {
   pragma() {}
 
   seedDefaultData() {
-    // Default Items - Complete list
-    this.data.items = [
-      { id: 1, name: "ATEX Certification", modification: "ATEX", unit: "pcs", defaultQty: 1, costPerUnit: 20, isDefault: true },
-      { id: 2, name: "ATEX Grounding", modification: "ATEX", unit: "pcs", defaultQty: 1, costPerUnit: 7, isDefault: true },
-      { id: 3, name: "ATEX Markup", modification: "ATEX", unit: "pcs", defaultQty: 1, costPerUnit: 200, isDefault: true },
-      { id: 4, name: "ATEX Modification (welded screw + wire)", modification: "ATEX", unit: "pcs", defaultQty: 1, costPerUnit: 15, isDefault: true },
-      { id: 5, name: "Decontamination Port", modification: "CamSafe", unit: "", defaultQty: 1, costPerUnit: 113, isDefault: true },
-      { id: 6, name: "High Pressure Customization (9kPa)", modification: "CamSafe", unit: "", defaultQty: 1, costPerUnit: 80, isDefault: true },
-      { id: 7, name: "High Temperature Modification", modification: "CamSafe", unit: "", defaultQty: 1, costPerUnit: 450, isDefault: true },
-      { id: 8, name: "Kamlock", modification: "CamSafe", unit: "pcs", defaultQty: 1, costPerUnit: 114, isDefault: true },
-      { id: 9, name: "Pressure Relief Kit S4/S6", modification: "CamSafe", unit: "pcs", defaultQty: 1, costPerUnit: 252, isDefault: true },
-      { id: 10, name: "Pressure Relief Kit SW", modification: "CamSafe", unit: "pcs", defaultQty: 1, costPerUnit: 147, isDefault: true },
-      { id: 11, name: "Additional Material S4/S6", modification: "", unit: "kg", defaultQty: 1, costPerUnit: 5, isDefault: true },
-      { id: 12, name: "Additional Welding", modification: "", unit: "", defaultQty: 1, costPerUnit: 7, isDefault: true }
+    // Complete Items list
+    const itemsData = [
+      { name: "ATEX Certification", modification: "ATEX", unit: "pcs", defaultQty: 1, costPerUnit: 20 },
+      { name: "ATEX Grounding", modification: "ATEX", unit: "pcs", defaultQty: 1, costPerUnit: 7 },
+      { name: "ATEX Markup", modification: "ATEX", unit: "pcs", defaultQty: 1, costPerUnit: 200 },
+      { name: "ATEX Modification (welded screw + wire)", modification: "ATEX", unit: "pcs", defaultQty: 1, costPerUnit: 15 },
+      { name: "Decontamination Port", modification: "CamSafe", unit: "", defaultQty: 1, costPerUnit: 113 },
+      { name: "High Pressure Customization (9kPa)", modification: "CamSafe", unit: "", defaultQty: 1, costPerUnit: 80 },
+      { name: "High Temperature Modification", modification: "CamSafe", unit: "", defaultQty: 1, costPerUnit: 450 },
+      { name: "Kamlock", modification: "CamSafe", unit: "pcs", defaultQty: 1, costPerUnit: 114 },
+      { name: "Pressure Relief Kit S4/S6", modification: "CamSafe", unit: "pcs", defaultQty: 1, costPerUnit: 252 },
+      { name: "Pressure Relief Kit SW", modification: "CamSafe", unit: "pcs", defaultQty: 1, costPerUnit: 147 },
+      { name: "Horizontal Orientation Markup", modification: "CamSafe", unit: "", defaultQty: 2, costPerUnit: 23 },
+      { name: "Flange Collector Customization Markup", modification: "CamSafe - Collector", unit: "", defaultQty: 1, costPerUnit: 100 },
+      { name: "Markup Mirror Finish", modification: "CamSafe - Finish", unit: "pcs", defaultQty: 1, costPerUnit: 30 },
+      { name: "Window Markup for CamSafe", modification: "CamSafe - Window", unit: "pcs", defaultQty: 1, costPerUnit: 66 },
+      { name: "Mini Latch", modification: "CamSafe WM - Door", unit: "pcs", defaultQty: 1, costPerUnit: 20 },
+      { name: "Turn Lock Markup", modification: "CamSafe WM - Door", unit: "pcs", defaultQty: 1, costPerUnit: 25 },
+      { name: "Carabin for Safety Cable", modification: "CleanSeal", unit: "pcs", defaultQty: 1, costPerUnit: 2 },
+      { name: "Custom Support Brackets", modification: "CleanSeal", unit: "", defaultQty: 1, costPerUnit: 6 },
+      { name: "Female Spigot Markup", modification: "CleanSeal", unit: "", defaultQty: 1, costPerUnit: 10 },
+      { name: "Injection Port", modification: "CleanSeal", unit: "", defaultQty: 1, costPerUnit: 37 },
+      { name: "Push-on Modification", modification: "CleanSeal", unit: "pcs", defaultQty: 1, costPerUnit: 22 },
+      { name: "Safety Cable", modification: "CleanSeal", unit: "pcs", defaultQty: 1, costPerUnit: 3 },
+      { name: "T-C Damper kit", modification: "CleanSeal", unit: "pcs", defaultQty: 1, costPerUnit: 130 },
+      { name: "No Filter Accessories", modification: "CleanSeal - Blind Housing", unit: "", defaultQty: -1, costPerUnit: 27 },
+      { name: "Custom Filter Size", modification: "CleanSeal", unit: "", defaultQty: 1, costPerUnit: 20 },
+      { name: "Male stud coupling NPT 1/8 - 6mm Swagelok, SS-6M0-1-2", modification: "SS Tubing", unit: "pcs", defaultQty: 1, costPerUnit: 12 },
+      { name: "Screw-on cutting ring fitt. G 1/8-6 L, Landefeld GAI 6 LR ES", modification: "SS Tubing", unit: "pcs", defaultQty: 1, costPerUnit: 19 },
+      { name: "Screw-on screw connection G 1/8 8x6mm, Landenfeld, ACK 186 MSV", modification: "SS Tubing", unit: "pcs", defaultQty: 1, costPerUnit: 1 },
+      { name: "SS Tubing", modification: "SS Tubing", unit: "m", defaultQty: 1, costPerUnit: 33 },
+      { name: "Disk Filter 40mm/6mm", modification: "SS Tubing", unit: "pcs", defaultQty: 1, costPerUnit: 150 },
+      { name: "Straight weld nipple D10 - 6mm, Schwer, SR-5296L", modification: "SS Tubing", unit: "pcs", defaultQty: 1, costPerUnit: 5 },
+      { name: "Assembly", modification: "Strader", unit: "h", defaultQty: 1, costPerUnit: 40 },
+      { name: "Coupling C-Angle, Strader, SW-LCK2_664200 S4,S6-LCK2E_6642001", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 2 },
+      { name: "Mounting set, Strader, SW-SGKM10X20_651341 S4,S6-SGKM10X20E_661050", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 1 },
+      { name: "Protective Cap 40x40", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 0 },
+      { name: "Screw hex head, M8x30, ISO 4017", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 0 },
+      { name: "Screw, Nuts & Washer kits", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 2 },
+      { name: "Square nut M8, Strader, SW-NWM8_650249 S4,S6-NWM8E_6502491", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 0 },
+      { name: "Strader Legs Markup", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 25 },
+      { name: "Strader Length S4/S6", modification: "Strader", unit: "mm", defaultQty: 1, costPerUnit: 0 },
+      { name: "Strader Length SW", modification: "Strader", unit: "mm", defaultQty: 1, costPerUnit: 0 },
+      { name: "Support Strips S4/S6", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 25 },
+      { name: "Support Strips SW", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 25 },
+      { name: "TOP VALVE SUPPORT SUSPENSION - DN450 PN10", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 50 },
+      { name: "Washer, M8, NF E25-513", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 0 },
+      { name: "Leg Position Holder", modification: "Strader", unit: "pcs", defaultQty: 1, costPerUnit: 8 },
+      { name: "Additional Material S4/S6", modification: "", unit: "kg", defaultQty: 1, costPerUnit: 5 },
+      { name: "Additional Material SW", modification: "", unit: "kg", defaultQty: 1, costPerUnit: 3 },
+      { name: "Additional Ports", modification: "", unit: "pcs", defaultQty: 1, costPerUnit: 15 },
+      { name: "Additional Spigot Customization", modification: "", unit: "pcs", defaultQty: 1, costPerUnit: 25 },
+      { name: "Additional Support Brackets + Screws + Washers", modification: "", unit: "pcs", defaultQty: 1, costPerUnit: 10 },
+      { name: "Additional Surface Finish - Painting", modification: "", unit: "m2", defaultQty: 1, costPerUnit: 35 },
+      { name: "Additional Welding", modification: "", unit: "", defaultQty: 1, costPerUnit: 7 },
+      { name: "Bending", modification: "", unit: "", defaultQty: 1, costPerUnit: 10 },
+      { name: "Cleaning Process", modification: "", unit: "", defaultQty: 1, costPerUnit: 5 },
+      { name: "Custom Collector Orientation", modification: "", unit: "", defaultQty: 1, costPerUnit: 30 },
+      { name: "Custom Flange Markup", modification: "", unit: "", defaultQty: 1, costPerUnit: 30 },
+      { name: "Custom Plate Markup", modification: "", unit: "", defaultQty: 1, costPerUnit: 275 },
+      { name: "Customization Markup (variable)", modification: "", unit: "", defaultQty: 1, costPerUnit: 10 },
+      { name: "Finish Markup", modification: "", unit: "", defaultQty: 1, costPerUnit: 20 },
+      { name: "Fittings", modification: "", unit: "pcs", defaultQty: 1, costPerUnit: 15 },
+      { name: "Laser Cutting", modification: "", unit: "min", defaultQty: 1, costPerUnit: 1 },
+      { name: "Less Material & Paint Cost", modification: "", unit: "", defaultQty: -1, costPerUnit: 15 },
+      { name: "Less Material Used (mm)", modification: "", unit: "mm", defaultQty: -1, costPerUnit: 0 },
+      { name: "Less Material Used S4/S6", modification: "", unit: "kg", defaultQty: -1, costPerUnit: 5 },
+      { name: "Less Material Used SW", modification: "", unit: "kg", defaultQty: -1, costPerUnit: 2 },
+      { name: "Less Paint Used S4/S6", modification: "", unit: "m2", defaultQty: -1, costPerUnit: 35 },
+      { name: "Less Paint Used SW", modification: "", unit: "m2", defaultQty: -1, costPerUnit: 26 },
+      { name: "Magnetic Lock Markup", modification: "", unit: "", defaultQty: 1, costPerUnit: 10 },
+      { name: "Manhours Markup", modification: "", unit: "hr", defaultQty: 1, costPerUnit: 40 },
+      { name: "Montage", modification: "", unit: "", defaultQty: 1, costPerUnit: 15 },
+      { name: "Sheet Metal Costs", modification: "", unit: "kg", defaultQty: 1, costPerUnit: 10 },
+      { name: "Welded Fittings", modification: "", unit: "pcs", defaultQty: 1, costPerUnit: 15 }
     ];
 
-    // Default Currencies
-    this.data.currencies = [
-      { id: 1, code: "EUR", rate: 1, isDefault: true },
-      { id: 2, code: "USD", rate: 1.0822, isDefault: true },
-      { id: 3, code: "GBP", rate: 0.8466, isDefault: true },
-      { id: 4, code: "AED", rate: 3.9748, isDefault: true },
-      { id: 5, code: "AUD", rate: 1.6393, isDefault: true },
-      { id: 6, code: "CAD", rate: 1.4821, isDefault: true },
-      { id: 7, code: "CHF", rate: 0.9528, isDefault: true },
-      { id: 8, code: "CNY", rate: 7.7878, isDefault: true },
-      { id: 9, code: "JPY", rate: 163.8686, isDefault: true }
+    this.data.items = itemsData.map((item, index) => ({
+      id: index + 1,
+      ...item,
+      isDefault: true
+    }));
+
+    // Complete Currencies list
+    const currenciesData = [
+      { code: "EUR", rate: 1 },
+      { code: "USD", rate: 1.0822 },
+      { code: "GBP", rate: 0.8466 },
+      { code: "AED", rate: 3.9748 },
+      { code: "AUD", rate: 1.6393 },
+      { code: "BGN", rate: 1.9586 },
+      { code: "BRL", rate: 5.8251 },
+      { code: "CAD", rate: 1.4821 },
+      { code: "CHF", rate: 0.9528 },
+      { code: "CNY", rate: 7.7878 },
+      { code: "CZK", rate: 25.1276 },
+      { code: "DKK", rate: 7.4610 },
+      { code: "HKD", rate: 8.4437 },
+      { code: "HUF", rate: 395.5523 },
+      { code: "INR", rate: 90.5414 },
+      { code: "JPY", rate: 163.8686 },
+      { code: "MXN", rate: 21.7539 },
+      { code: "MYR", rate: 4.9511 },
+      { code: "NOK", rate: 11.6315 },
+      { code: "NZD", rate: 1.7876 },
+      { code: "PLN", rate: 4.3082 },
+      { code: "RON", rate: 4.9760 },
+      { code: "RSD", rate: 117.1005 },
+      { code: "RUB", rate: 100.3879 },
+      { code: "SEK", rate: 11.4381 },
+      { code: "SGD", rate: 1.4460 },
+      { code: "THB", rate: 38.1867 },
+      { code: "TRY", rate: 35.5786 },
+      { code: "TWD", rate: 34.7900 },
+      { code: "ZAR", rate: 19.8297 }
     ];
+
+    this.data.currencies = currenciesData.map((currency, index) => ({
+      id: index + 1,
+      ...currency,
+      isDefault: true
+    }));
 
     // Default Finishes
     this.data.finishes = [
