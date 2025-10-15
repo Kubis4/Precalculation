@@ -79,7 +79,6 @@ body.modal-open {
   background-color: #f3f4f6;
 }
 
-/* ==================== PRINT STYLES ==================== */
 @media print {
   .no-print { 
     display: none !important; 
@@ -103,6 +102,17 @@ body.modal-open {
   
   .shadow-md { 
     box-shadow: none !important; 
+  }
+  
+  /* Print header */
+  .print-header {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px !important;
+    padding-bottom: 8px !important;
+    border-bottom: 2px solid #000 !important;
+    font-size: 9px !important;
   }
   
   table { 

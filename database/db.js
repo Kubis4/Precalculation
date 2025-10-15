@@ -20,15 +20,38 @@ class DatabaseManager {
       fs.mkdirSync(this.dbDir, { recursive: true });
     }
 
+    let needsReinitialization = false;
+
     if (fs.existsSync(this.dbPath)) {
       try {
         const fileData = fs.readFileSync(this.dbPath, 'utf8');
         this.data = JSON.parse(fileData);
+        
+        // Check if data is complete - should have at least 30 currencies and 40+ items
+        if (!this.data.items || this.data.items.length < 40) {
+          console.log(`Database incomplete: found ${this.data.items?.length || 0} items (expected 40+)`);
+          needsReinitialization = true;
+        }
+        if (!this.data.currencies || this.data.currencies.length < 30) {
+          console.log(`Database incomplete: found ${this.data.currencies?.length || 0} currencies (expected 30)`);
+          needsReinitialization = true;
+        }
+        
+        if (needsReinitialization) {
+          console.log('Reinitializing database with complete default data...');
+          this.seedDefaultData();
+          this.save();
+        }
       } catch (error) {
         console.error('Error loading database:', error);
-        this.seedDefaultData();
+        needsReinitialization = true;
       }
     } else {
+      needsReinitialization = true;
+    }
+
+    if (needsReinitialization && !fs.existsSync(this.dbPath)) {
+      console.log('Creating new database with default data...');
       this.seedDefaultData();
       this.save();
     }

@@ -1,18 +1,5 @@
 const { useState, useEffect } = React;
 
-// ==================== CONSTANTS ====================
-const FINISH_TYPES = ["SW", "S4", "S6"];
-const FINISH_SUBTEXTS = {
-  "SW": ["RAL 9010", "RAL 9002", "RAL 9003", "RAL 9006", "RAL 9016", "RAL 7035", "Custom"],
-  "S4": ["Brushed", "Mirror", "2B", "025", "Custom"],
-  "S6": ["Brushed", "Mirror", "2B", "025", "Custom"]
-};
-const FINISH_DESCRIPTIONS = {
-  "SW": "Prepainted Steel",
-  "S4": "Stainless Steel",
-  "S6": "Aluminium"
-};
-
 // ==================== ICON COMPONENTS ====================
 const Plus = ({size = 20}) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -105,6 +92,32 @@ const X = ({size = 24}) => (
   </svg>
 );
 
+// ==================== CONSTANTS ====================
+const FINISH_TYPES = ["SW", "S4", "S6"];
+const FINISH_SUBTEXTS = {
+  "SW": ["RAL 9010", "RAL 9002", "RAL 9003", "RAL 9006", "RAL 9016", "RAL 7035", "Custom"],
+  "S4": ["Brushed", "Mirror", "2B", "025", "Custom"],
+  "S6": ["Brushed", "Mirror", "2B", "025", "Custom"]
+};
+const FINISH_DESCRIPTIONS = {
+  "S4": "SS304L",
+  "S6": "SS316L"
+};
+
+// ==================== PRINT HEADER COMPONENT ====================
+const PrintHeader = ({ date, by, currency, viewMode }) => (
+  <div className="print-header" style={{ display: 'none' }}>
+    <div>
+      <div><strong>Date:</strong> {date}</div>
+      <div><strong>By:</strong> {by}</div>
+    </div>
+    <div style={{ textAlign: 'right' }}>
+      <div><strong>Currency:</strong> {currency}</div>
+      <div><strong>View:</strong> {viewMode ? 'Sales' : 'Full'}</div>
+    </div>
+  </div>
+);
+
 // ==================== CURRENCY MANAGER MODAL ====================
 const CurrencyManagerModal = ({ isOpen, onClose, allCurrencies, onRefresh, currentCurrency }) => {
   const [currencies, setCurrencies] = useState([]);
@@ -189,6 +202,7 @@ const CurrencyManagerModal = ({ isOpen, onClose, allCurrencies, onRefresh, curre
           <p className="text-sm text-gray-700">
             <strong>Current Currency:</strong> <span className="text-blue-700 font-bold">{currentCurrency}</span>
           </p>
+          <p className="text-xs text-gray-600 mt-1">Total currencies: {currencies.length}</p>
         </div>
 
         <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
@@ -403,6 +417,12 @@ const ModificationManagerModal = ({ isOpen, onClose, allItems, onRefresh, tables
           </button>
         </div>
 
+        <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
+          <p className="text-sm text-gray-700">
+            <strong>Total Modifications:</strong> {items.length} items
+          </p>
+        </div>
+
         <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
           <h4 className="font-semibold mb-3">Add New Modification</h4>
           <div className="grid grid-cols-5 gap-3">
@@ -512,7 +532,7 @@ const ModificationManagerModal = ({ isOpen, onClose, allItems, onRefresh, tables
                       </td>
                       <td className="border border-gray-300 px-2 py-1 text-center">
                         {isTemp ? (
-                          <span className="text-gray-400 text-xs">Used</span>
+                          <span className="text-gray-400 text-xs">Temp</span>
                         ) : (
                           <button onClick={() => deleteMod(mod.id)} className="text-red-600 hover:text-red-800">
                             <Trash2 size={16} />
@@ -800,7 +820,6 @@ const PrecalculationTable = ({
           />
         </div>
       </div>
-
 
       <h3 className="text-lg font-semibold mb-3 text-gray-700">Items & Modifications</h3>
       
@@ -1185,21 +1204,186 @@ function App() {
     setTables(newTables);
   };
 
-  // Export/Import functions (keep same as before)
-  const exportToPDF = async () => {
+  // ==================== EXPORT TO PDF ====================
+  const exportToPDF = () => {
+    if (isSalesView) {
+      document.body.classList.add('sales-view-mode');
+    }
+    window.print();
+    document.body.classList.remove('sales-view-mode');
+    setShowExportMenu(false);
+  };
+
+  // ==================== EXPORT TO EXCEL ====================
+  const exportToExcel = async () => {
     try {
-      if (isSalesView) {
-        document.body.classList.add('sales-view-mode');
-      }
-      await window.electronAPI.app.print();
-      document.body.classList.remove('sales-view-mode');
-      setShowExportMenu(false);
+      const script = document.createElement('script');
+      script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+      
+      script.onload = async () => {
+        try {
+          const XLSX = window.XLSX;
+          const wb = XLSX.utils.book_new();
+
+          tables.forEach((table, tableIndex) => {
+            const defaultItemsTotal = table.defaultItems.reduce((sum, item) => sum + (parseFloat(item.f3Cost) || 0), 0);
+            
+            const modificationsCostF3 = table.rows.reduce((sum, row) => {
+              const qty = parseFloat(row.qty) || 0;
+              const f3 = parseFloat(row.f3Price) || 0;
+              return sum + (qty * f3);
+            }, 0);
+
+            const modificationsCostF4 = table.rows.reduce((sum, row) => {
+              const qty = parseFloat(row.qty) || 0;
+              const f4 = parseFloat(row.f4Price) || 0;
+              return sum + (qty * f4);
+            }, 0);
+            
+            const totalCost = Math.round(defaultItemsTotal + modificationsCostF3);
+            const emcMarginPercent = totalCost > 0 ? Math.round(((totalCost - modificationsCostF4) / totalCost) * 100) : 0;
+
+            const wsData = [];
+            
+            // Add structured data markers for import
+            wsData.push(['PRECALC_DATA_START']);
+            wsData.push(['Metadata', globalDate, globalBy, globalCurrency, isSalesView ? 'Sales' : 'Full']);
+            wsData.push(['ProjectData', table.projectNumber, table.drawingNumber, table.drawingNumberSubtext, table.descriptionName, table.finishType, table.finishSubtext, table.finishSubtextCustom, table.weight, table.customMargin]);
+            wsData.push(['DefaultItemsStart']);
+            table.defaultItems.forEach((item) => {
+              wsData.push(['DefaultItem', item.itemNumber, item.name, item.f3Cost]);
+            });
+            wsData.push(['DefaultItemsEnd']);
+            wsData.push(['ModificationsStart']);
+            table.rows.forEach(row => {
+              wsData.push(['Modification', row.modification, row.unit, row.qty, row.f4Price, row.f3Price]);
+            });
+            wsData.push(['ModificationsEnd']);
+            wsData.push(['PRECALC_DATA_END']);
+            wsData.push(['']);
+            wsData.push(['']);
+            
+            // Add visual presentation
+            wsData.push(['', '', '', '', '', '', '', '', '', '', 'Calculated']);
+            wsData.push(['', '', '', '', '', '', '', '', '', '', 'Date :', globalDate]);
+            wsData.push(['', '', '', '', '', '', '', '', '', '', 'By :', globalBy]);
+            wsData.push(['', '', '', '', '', '', '', '', '', '', '']);
+            
+            wsData.push(['Finish', 'PRE-CALCULATION', '', '', 'COMIC', 'unit', 'qty', 'cost\\unit', 'cost', 'coeff.', 'F3 EMC', 'margin']);
+            
+            const finishDisplay = table.finishSubtext === 'Custom' && table.finishSubtextCustom 
+              ? `${table.finishType} - ${table.finishSubtextCustom}` 
+              : `${table.finishType} - ${table.finishSubtext}`;
+            wsData.push([finishDisplay, '', '', '', '', '', '', '', '', '', '', 'Currency: ' + globalCurrency]);
+            wsData.push(['', '', '', 'Weight (kg):', table.weight || '', '', '', '', '', '', '', 'Margin: ' + (table.customMargin || '40') + '%']);
+            wsData.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+            
+            const drawingNumberDisplay = table.drawingNumberSubtext 
+              ? `${table.drawingNumber} (${table.drawingNumberSubtext})`
+              : table.drawingNumber || '';
+            wsData.push(['', 'Project EMC - ' + (table.projectNumber || ''), '', '', drawingNumberDisplay, '', '', '', '', '', '', '']);
+            wsData.push(['', table.descriptionName || '', '', '', '', '', '', '', '', '', '', '']);
+            wsData.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+            
+            const firstItemNumber = table.defaultItems[0]?.itemNumber || '';
+            wsData.push([firstItemNumber, '', '', '', '', '', '', '', '', '', '', '']);
+            wsData.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+            
+            table.defaultItems.forEach((item) => {
+              if (item.name || item.f3Cost) {
+                const itemCost = parseFloat(item.f3Cost) || 0;
+                wsData.push(['', item.name || '', '', '', item.itemNumber || '', '', '', '', '', '', itemCost.toFixed(2) + ' €', '']);
+              }
+            });
+            
+            table.rows.forEach(row => {
+              if (row.modification) {
+                const qty = parseFloat(row.qty) || 0;
+                const f4Price = parseFloat(row.f4Price) || 0;
+                const cost = qty * f4Price;
+                
+                wsData.push(['', row.modification || '', '', '', '', row.unit || '', qty || '', f4Price || '', cost.toFixed(2) + ' €', '', '', '']);
+              }
+            });
+            
+            wsData.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+            wsData.push(['', 'Customization Markup (variable)', '', '', '', '', '1', '10', '10.00 €', '', '', '']);
+            wsData.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+            
+            const projectCode = (table.drawingNumber || '') + (table.projectNumber || '') + '-' + (table.descriptionName || '').substring(0, 20);
+            wsData.push(['', projectCode, '', '', '', '', '', '', defaultItemsTotal.toFixed(2) + ' €', '', totalCost.toFixed(0) + ' €', 'EMC margin']);
+            
+            wsData.push(['', '', '', '', '', '', '', '', '', '', '', emcMarginPercent + '%']);
+            wsData.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+            wsData.push(['', '', '', '', '', '', '', '', '', '', '', 'Sales margin']);
+            wsData.push(['', '', '', '', '', '', '', '', '', '', '', '0%']);
+            
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            
+            ws['!cols'] = [
+              { wch: 12 }, { wch: 40 }, { wch: 8 }, { wch: 15 },
+              { wch: 15 }, { wch: 8 }, { wch: 8 }, { wch: 12 },
+              { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 15 }
+            ];
+            
+            const sheetName = (table.projectNumber || `Project_${tableIndex + 1}`).substring(0, 31);
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+          });
+
+          // Add custom modifications sheet if any exist
+          if (allItems.filter(item => !item.isDefault).length > 0) {
+            const customData = [
+              ['CUSTOM MODIFICATIONS'],
+              [],
+              ['Name', 'Unit', 'Default Qty', 'F4 Cost per Unit (EUR)']
+            ];
+            allItems.filter(item => !item.isDefault).forEach(mod => {
+              customData.push([mod.name, mod.unit, mod.defaultQty, mod.costPerUnit]);
+            });
+            const customWs = XLSX.utils.aoa_to_sheet(customData);
+            customWs['!cols'] = [{ wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 25 }];
+            XLSX.utils.book_append_sheet(wb, customWs, 'Custom Modifications');
+          }
+
+          const firstTable = tables[0];
+          const projectNum = firstTable.projectNumber || 'PROJECT';
+          
+          // Use Electron dialog to save file
+          const result = await window.electronAPI.dialog.saveFile({
+            title: 'Export to Excel',
+            defaultPath: `${projectNum}_precalculation.xlsx`,
+            filters: [
+              { name: 'Excel Files', extensions: ['xlsx'] },
+              { name: 'All Files', extensions: ['*'] }
+            ]
+          });
+
+          if (!result.canceled && result.filePath) {
+            // Write the file
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+            await window.electronAPI.fs.writeFile(result.filePath, wbout);
+            alert('✅ Excel file exported successfully!');
+          }
+          
+          setShowExportMenu(false);
+        } catch (error) {
+          console.error('XLSX processing error:', error);
+          alert('❌ Error creating Excel file: ' + error.message);
+        }
+      };
+      
+      script.onerror = () => {
+        alert('❌ Failed to load Excel library. Please check your internet connection.');
+      };
+      
+      document.head.appendChild(script);
     } catch (error) {
-      console.error('Error printing:', error);
-      alert('Error printing document');
+      console.error('Export error:', error);
+      alert('❌ Error exporting to Excel: ' + error.message);
     }
   };
 
+  // ==================== EXPORT TO XML ====================
   const exportToXML = async () => {
     try {
       let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -1267,16 +1451,240 @@ function App() {
 
       if (!result.canceled && result.filePath) {
         await window.electronAPI.fs.writeFile(result.filePath, xmlContent);
-        alert('XML file exported successfully!');
+        alert('✅ XML file exported successfully!');
       }
       
       setShowExportMenu(false);
     } catch (error) {
       console.error('XML export error:', error);
-      alert('Error exporting to XML: ' + error.message);
+      alert('❌ Error exporting to XML: ' + error.message);
     }
   };
 
+  // ==================== IMPORT EXCEL ====================
+  const loadExcel = async (file) => {
+    if (!file) return;
+
+    try {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+      
+      script.onload = async () => {
+        const XLSX = window.XLSX;
+        
+        const fileBuffer = await window.electronAPI.fs.readFile(file.path);
+        const data = new Uint8Array(fileBuffer);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        
+        const newTables = [];
+        let extractedDate = globalDate;
+        let extractedBy = globalBy;
+        let extractedCurrency = globalCurrency;
+        let extractedViewMode = isSalesView;
+        
+        workbook.SheetNames.forEach(sheetName => {
+          if (sheetName.toLowerCase() === 'custom modifications') return;
+          
+          const ws = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+          
+          let dataStartIndex = -1;
+          for (let i = 0; i < jsonData.length; i++) {
+            if (jsonData[i][0] === 'PRECALC_DATA_START') {
+              dataStartIndex = i;
+              break;
+            }
+          }
+          
+          if (dataStartIndex >= 0) {
+            // NEW FORMAT - with markers
+            if (jsonData[dataStartIndex + 1] && jsonData[dataStartIndex + 1][0] === 'Metadata') {
+              const metadataRow = jsonData[dataStartIndex + 1];
+              if (metadataRow[1]) extractedDate = metadataRow[1];
+              if (metadataRow[2]) extractedBy = String(metadataRow[2]);
+              if (metadataRow[3]) extractedCurrency = String(metadataRow[3]);
+              if (metadataRow[4]) extractedViewMode = metadataRow[4] === 'Sales';
+              
+              if (jsonData[dataStartIndex + 2] && jsonData[dataStartIndex + 2][0] === 'ProjectData') {
+                const projectRow = jsonData[dataStartIndex + 2];
+                
+                const table = {
+                  id: Date.now() + Math.random(),
+                  projectNumber: projectRow[1] || '',
+                  drawingNumber: projectRow[2] || '',
+                  drawingNumberSubtext: projectRow[3] || '',
+                  descriptionName: projectRow[4] || '',
+                  finishType: projectRow[5] || 'SW',
+                  finishSubtext: projectRow[6] || 'RAL 9010',
+                  finishSubtextCustom: projectRow[7] || '',
+                  weight: projectRow[8] || '',
+                  customMargin: projectRow[9] || '40',
+                  defaultItems: [],
+                  rows: []
+                };
+                
+                let currentIndex = dataStartIndex + 3;
+                
+                if (jsonData[currentIndex] && jsonData[currentIndex][0] === 'DefaultItemsStart') {
+                  currentIndex++;
+                  while (currentIndex < jsonData.length && jsonData[currentIndex][0] !== 'DefaultItemsEnd') {
+                    if (jsonData[currentIndex][0] === 'DefaultItem') {
+                      table.defaultItems.push({
+                        itemNumber: jsonData[currentIndex][1] || '',
+                        name: jsonData[currentIndex][2] || '',
+                        f3Cost: jsonData[currentIndex][3] || ''
+                      });
+                    }
+                    currentIndex++;
+                  }
+                  if (table.defaultItems.length === 0) {
+                    table.defaultItems = [{ itemNumber: '', name: '', f3Cost: '' }];
+                  }
+                }
+                
+                if (jsonData[currentIndex] && jsonData[currentIndex][0] === 'DefaultItemsEnd') {
+                  currentIndex++;
+                }
+                
+                if (jsonData[currentIndex] && jsonData[currentIndex][0] === 'ModificationsStart') {
+                  currentIndex++;
+                  while (currentIndex < jsonData.length && jsonData[currentIndex][0] !== 'ModificationsEnd') {
+                    if (jsonData[currentIndex][0] === 'Modification') {
+                      table.rows.push({
+                        modification: jsonData[currentIndex][1] || '',
+                        unit: jsonData[currentIndex][2] || '',
+                        qty: jsonData[currentIndex][3] || '',
+                        f4Price: jsonData[currentIndex][4] || '',
+                        f3Price: jsonData[currentIndex][5] || ''
+                      });
+                    }
+                    currentIndex++;
+                  }
+                  if (table.rows.length === 0) {
+                    table.rows = [{ modification: '', unit: '', qty: '', f4Price: '', f3Price: '' }];
+                  }
+                }
+                
+                newTables.push(table);
+              }
+            }
+          } else {
+            // LEGACY FORMAT - without markers
+            const table = {
+              id: Date.now() + Math.random(),
+              projectNumber: '',
+              drawingNumber: '',
+              drawingNumberSubtext: '',
+              descriptionName: '',
+              finishType: 'SW',
+              finishSubtext: 'RAL 9010',
+              finishSubtextCustom: '',
+              weight: '',
+              customMargin: '40',
+              defaultItems: [],
+              rows: []
+            };
+            
+            for (let i = 0; i < jsonData.length; i++) {
+              const row = jsonData[i];
+              const cellText = String(row[1] || '').trim();
+              
+              if (cellText.startsWith('Project EMC')) {
+                const match = cellText.match(/Project EMC\s*-\s*([A-Z0-9-]+)/i);
+                if (match) table.projectNumber = match[1].trim();
+              }
+              
+              if (table.projectNumber && !table.descriptionName && cellText && !cellText.startsWith('Project')) {
+                table.descriptionName = cellText;
+              }
+              
+              if (row[4] && String(row[4]).match(/\d{4}-\d{3}/)) {
+                const fullDrawing = String(row[4]);
+                const match = fullDrawing.match(/^([0-9-]+)\s*\(([^)]+)\)/);
+                if (match) {
+                  table.drawingNumber = match[1];
+                  table.drawingNumberSubtext = match[2];
+                } else {
+                  table.drawingNumber = fullDrawing.split('(')[0].trim();
+                }
+              }
+              
+              if (i < 10 && row[0]) {
+                const finishText = String(row[0]).trim();
+                if (finishText.startsWith('S4') || finishText.startsWith('S6') || finishText.startsWith('SW')) {
+                  const parts = finishText.split('-');
+                  table.finishType = parts[0].trim();
+                  if (parts[1]) table.finishSubtext = parts[1].trim();
+                }
+              }
+              
+              if (row[3] === 'Weight (kg):' && row[4]) {
+                table.weight = String(row[4]);
+              }
+              
+              if (row[1] && row[5] && row[6] && row[7]) {
+                const modName = String(row[1]).trim();
+                const unit = String(row[5]).trim();
+                const qty = String(row[6]).trim();
+                const costStr = String(row[7]).trim();
+                
+                if (modName && !modName.includes('PRE-CALCULATION') && 
+                    !modName.includes('Project EMC') && qty && !isNaN(parseFloat(qty))) {
+                  
+                  const costPerUnit = parseFloat(costStr.replace(/[^\d.-]/g, '')) || 0;
+                  const qtyNum = parseFloat(qty) || 0;
+                  
+                  table.rows.push({
+                    modification: modName,
+                    unit: unit,
+                    qty: String(qtyNum),
+                    f4Price: String(costPerUnit),
+                    f3Price: String(Math.ceil(costPerUnit / 0.6))
+                  });
+                }
+              }
+            }
+            
+            if (table.rows.length === 0) {
+              table.rows = [{ modification: '', unit: '', qty: '', f4Price: '', f3Price: '' }];
+            }
+            
+            if (table.defaultItems.length === 0) {
+              table.defaultItems = [{ itemNumber: '', name: '', f3Cost: '' }];
+            }
+            
+            if (table.projectNumber || table.descriptionName || table.rows.some(r => r.modification)) {
+              newTables.push(table);
+            }
+          }
+        });
+        
+        if (newTables.length > 0) {
+          setTables(newTables);
+          setGlobalDate(extractedDate);
+          setGlobalBy(extractedBy);
+          setGlobalCurrency(extractedCurrency);
+          setIsSalesView(extractedViewMode);
+          alert(`✅ Excel file loaded successfully! Imported ${newTables.length} project(s).`);
+        } else {
+          alert('⚠️ No precalculation data found in Excel file.');
+        }
+        
+        setShowImportMenu(false);
+      };
+      
+      script.onerror = () => {
+        alert('❌ Failed to load Excel library. Please check your internet connection.');
+      };
+      
+      document.head.appendChild(script);
+    } catch (error) {
+      console.error('Excel import error:', error);
+      alert('❌ Error loading Excel file: ' + error.message);
+    }
+  };
+
+  // ==================== IMPORT XML ====================
   const loadXML = async () => {
     try {
       const result = await window.electronAPI.dialog.openFile({
@@ -1375,15 +1783,15 @@ function App() {
       
       if (newTables.length > 0) {
         setTables(newTables);
-        alert(`XML file loaded successfully! Imported ${newTables.length} project(s).`);
+        alert(`✅ XML file loaded successfully! Imported ${newTables.length} project(s).`);
       } else {
-        alert('No project data found in XML file');
+        alert('⚠️ No project data found in XML file');
       }
       
       setShowImportMenu(false);
     } catch (error) {
       console.error('XML import error:', error);
-      alert('Error loading XML file: ' + error.message);
+      alert('❌ Error loading XML file: ' + error.message);
     }
   };
 
@@ -1454,6 +1862,12 @@ function App() {
                     <FileText size={16} /> Export PDF
                   </button>
                   <button 
+                    onClick={exportToExcel} 
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <Download size={16} /> Export Excel
+                  </button>
+                  <button 
                     onClick={exportToXML} 
                     className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 rounded-b-lg"
                   >
@@ -1472,9 +1886,23 @@ function App() {
               </button>
               {showImportMenu && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <label className="w-full px-4 py-2 hover:bg-gray-100 flex items-center gap-2 cursor-pointer rounded-t-lg">
+                    <Upload size={16} /> Import Excel
+                    <input 
+                      type="file" 
+                      accept=".xlsx,.xls,.xlsm" 
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          loadExcel(e.target.files[0]);
+                        }
+                        e.target.value = '';
+                      }} 
+                      className="hidden" 
+                    />
+                  </label>
                   <button 
                     onClick={loadXML} 
-                    className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 rounded-t-lg"
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 rounded-b-lg"
                   >
                     <Upload size={16} /> Import XML
                   </button>
@@ -1615,3 +2043,4 @@ function App() {
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
+
